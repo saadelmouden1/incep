@@ -1,48 +1,35 @@
-LOGIN = sel-moud
+DC        = docker compose -f ./srcs/docker-compose.yml
+DATA      = /home/sel-moud/data
+WP_DATA   = $(DATA)/wordpress_data
+DB_DATA   = $(DATA)/mariadb_data
 
-# paths to persistent data
-WP_DATA = /home/$(LOGIN)/data/wordpress
-DB_DATA = /home/$(LOGIN)/data/mariadb
 
-# docker compose command
-COMPOSE = docker compose -f docker-compose.yml
+all: up-build
 
-# Default target
-all: up
+up-build:
+	$(DC) up --build
 
-# Build Docker images
-build:
-	$(COMPOSE) build
+up:
+	$(DC) up
 
-# Create data directories and start containers
-up: build
-	@mkdir -p $(WP_DATA)
-	@mkdir -p $(DB_DATA)
-	$(COMPOSE) up -d
-
-# Stop containers
-stop:
-	$(COMPOSE) stop
-
-# Start stopped containers
-start:
-	$(COMPOSE) start
-
-# Stop and remove containers (keep volumes)
 down:
-	$(COMPOSE) down
+	$(DC) down
 
-# Clean project (containers + volumes + host data)
 clean:
-	$(COMPOSE) down -v
-	@rm -rf /home/$(LOGIN)/data
-
-# Full system prune (optional / nuclear)
-fclean: clean
-	@docker system prune -a --volumes -f
-
-# Rebuild everything from scratch
-re: fclean up
-
-# Phony targets
-.PHONY: all build up stop start down clean fclean re
+	sudo rm -rf $(WP_DATA)/* $(DB_DATA)/*
+	@if [ -n "$$(docker ps -qa)" ]; then \
+		echo "Stopping and removing all containers..."; \
+		docker stop $$(docker ps -qa) && docker rm $$(docker ps -qa); \
+	fi
+	@if [ -n "$$(docker images -qa)" ]; then \
+		echo "Removing all Docker images..."; \
+		docker rmi -f $$(docker images -qa); \
+	fi
+	@if [ -n "$$(docker volume ls -q)" ]; then \
+		echo "Removing all Docker volumes..."; \
+		docker volume rm $$(docker volume ls -q); \
+	fi
+	@if [ -n "$$(docker network ls -q --filter type=custom)" ]; then \
+		echo "Removing custom Docker networks..."; \
+		docker network rm $$(docker network ls -q --filter type=custom); \
+	fi
